@@ -1,12 +1,18 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env([...]
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Magic 8 Ball</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap">
 <style>
-  /* Layout: a single ball centered on a dark table. Nothing else on the page. */
   :root {
+    color-scheme: dark;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     --bg: #0d1017;
     --bg-glow: #1a2233;
     --ball-hi: #3a3f4d;
@@ -15,12 +21,14 @@
     --disc-ink: #0b0d12;
     --window: #1b2a8c;
     --window-lo: #0a1052;
-    --window-ink: #dfe6ff;
+    --tri-hi: #a9bcff;
+    --tri-lo: #6f8bf5;
+    --tri-ink: #070d3a;
     --accent: #5b7cff;
     --font-display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
     --ball: min(88vw, 400px);
-    color-scheme: dark;
   }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
@@ -75,28 +83,73 @@
     line-height: 1;
     box-shadow: inset 0 -6px 14px rgba(0,0,0,0.18);
   }
+
+  /* The blue window: deep water with a soft glow where the triangle floats. */
   .window {
-    background: radial-gradient(circle at 50% 40%, var(--window), var(--window-lo) 85%);
-    color: var(--window-ink);
+    width: 64%;
+    background:
+      radial-gradient(circle at 50% 46%, rgba(120,150,255,0.35) 0, rgba(120,150,255,0) 48%),
+      radial-gradient(circle at 50% 40%, var(--window), var(--window-lo) 85%);
     box-shadow: inset 0 0 28px rgba(0,0,20,0.8), 0 0 0 4px rgba(0,0,0,0.5);
     opacity: 0;
-    padding: 9%;
+    overflow: hidden;
+  }
+
+  /* The triangle: the wrapper carries the glow, the inner shape is clipped. */
+  .tri {
+    position: relative;
+    width: 90%;
+    aspect-ratio: 1 / 0.87;
+    rotate: var(--tilt, 0deg);
+    opacity: 0;
+    filter: drop-shadow(0 0 10px rgba(140,170,255,0.55)) drop-shadow(0 6px 8px rgba(0,0,30,0.5));
+  }
+  .tri-shape {
+    position: absolute;
+    inset: 0;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    background:
+      linear-gradient(165deg, rgba(255,255,255,0.45) 0, rgba(255,255,255,0) 40%),
+      linear-gradient(180deg, var(--tri-hi), var(--tri-lo));
+  }
+  .tri-text {
+    position: absolute;
+    left: 19%;
+    right: 19%;
+    top: 9%;
+    height: 44%;
+    display: grid;
+    place-items: center;
   }
   .ans {
     margin: 0;
+    color: var(--tri-ink);
     font-family: var(--font-display);
     font-weight: 500;
-    font-size: calc(var(--ball) * 0.056);
-    line-height: 1.2;
+    font-size: calc(var(--ball) * 0.045);
+    line-height: 1.15;
     text-align: center;
     text-wrap: balance;
     overflow-wrap: anywhere;
   }
-  .ans.long { font-size: calc(var(--ball) * 0.047); }
-  .ans.short { font-size: calc(var(--ball) * 0.07); }
+  .ans.long { font-size: calc(var(--ball) * 0.037); }
+  .ans.short { font-size: calc(var(--ball) * 0.058); }
 
   .ball[data-state="answer"] .disc { opacity: 0; }
   .ball[data-state="answer"] .window { opacity: 1; }
+  .ball[data-state="answer"] .tri {
+    animation: rise 1.2s cubic-bezier(.2,.7,.2,1) both, float 5s ease-in-out 1.2s infinite alternate;
+  }
+
+  /* Rises up from deep in the fluid, then drifts. */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18%) scale(0.55); filter: blur(6px) drop-shadow(0 0 10px rgba(140,170,255,0.55)); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes float {
+    from { opacity: 1; transform: translate(-2%, -4%) rotate(-3deg); }
+    to   { opacity: 1; transform: translate(2%, 4%) rotate(3deg); }
+  }
 
   .ball.shaking { animation: shake 0.75s cubic-bezier(.36,.07,.19,.97) both; }
   @keyframes shake {
@@ -110,59 +163,68 @@
   @media (prefers-reduced-motion: reduce) {
     .ball.shaking { animation: none; }
     .face { transition: none; }
+    .ball[data-state="answer"] .tri { animation: none; opacity: 1; }
   }
 </style>
+</head>
+<body>
 
 <button class="ball" id="ball" type="button" data-state="idle" aria-label="Magic 8 ball. Shake the phone or activate this button for an answer.">
   <span class="face disc" aria-hidden="true">8</span>
-  <span class="face window"><p class="ans" id="ans" aria-live="polite"></p></span>
+  <span class="face window">
+    <span class="tri" id="tri">
+      <span class="tri-shape"></span>
+      <span class="tri-text"><p class="ans" id="ans" aria-live="polite"></p></span>
+    </span>
+  </span>
 </button>
 
 <script>
 var ANSWERS = [
-“Ew, next question.”,
-“Oh sweetie. No.”,
-“Read the room. No.”,
-“That’s a choice. A bad one.”,
-“Bless your heart, no.”,
-“Bold of you to assume that’s an option.”,
-“The audacity of you even asking.”,
-“Is this a prank?”,
-“Who hurt you?”,
-“Do you hear yourself right now?”,
-“Not today, Satan.”,
-“Touch grass and try again.”,
-“Major ick.”,
-“Not the vibe.”,
-“Delulu is not the solulu here.”,
-“The math ain’t mathing.”,
-“Girl, be so for real right now.”,
-“Negative aura points for even asking.”,
-“Bombastic side eye.”,
-“It’s a chop.”,
-“Respectfully, no. Disrespectfully, also no.”,
-“Say less.”,
-“Bet.”,
-“It’s giving yes.”,
-“We’re so back.”,
-“Ate and left no crumbs.”,
-“You understood the assignment.”,
-“Slay. Proceed.”,
-“Main character energy. Yes.”,
-“Bestie, yes.”,
-“Vibes are immaculate. Yes.”,
-“No notes. Perfection.”,
-“Let him cook.”,
-“Let me marinate on that.”,
-“The jury is still out.”,
-“Vibes are inconclusive.”,
-“Lowkey maybe, highkey unsure.”,
-“I need more lore before I decide.”,
-“Convince me.”,
-“Ask me in three to five business days.”
+"Ew, next question.",
+"Oh sweetie. No.",
+"Read the room. No.",
+"That’s a choice. A bad one.",
+"Bless your heart, no.",
+"Bold of you to assume that’s an option.",
+"The audacity of you even asking.",
+"Is this a prank?",
+"Who hurt you?",
+"Do you hear yourself right now?",
+"Not today, Satan.",
+"Touch grass and try again.",
+"Major ick.",
+"Not the vibe.",
+"Delulu is not the solulu here.",
+"The math ain’t mathing.",
+"Girl, be so for real right now.",
+"Negative aura points for even asking.",
+"Bombastic side eye.",
+"It’s a chop.",
+"Respectfully, no. Disrespectfully, also no.",
+"Say less.",
+"Bet.",
+"It’s giving yes.",
+"We’re so back.",
+"Ate and left no crumbs.",
+"You understood the assignment.",
+"Slay. Proceed.",
+"Main character energy. Yes.",
+"Bestie, yes.",
+"Vibes are immaculate. Yes.",
+"No notes. Perfection.",
+"Let him cook.",
+"Let me marinate on that.",
+"The jury is still out.",
+"Vibes are inconclusive.",
+"Lowkey maybe, highkey unsure.",
+"I need more lore before I decide.",
+"Convince me.",
+"Ask me in three to five business days."
 ];
 
   var ball = document.getElementById("ball");
+  var tri = document.getElementById("tri");
   var ans = document.getElementById("ans");
   var last = -1;
   var busy = false;
@@ -179,6 +241,7 @@ var ANSWERS = [
     var text = pick();
     ans.textContent = text;
     ans.className = "ans" + (text.length > 30 ? " long" : text.length < 16 ? " short" : "");
+    tri.style.setProperty("--tilt", (Math.random() * 16 - 8).toFixed(1) + "deg");
     ball.setAttribute("data-state", "answer");
     ball.classList.remove("shaking");
     busy = false;
@@ -228,5 +291,5 @@ var ANSWERS = [
     shake();
   });
 </script>
-
-</body></html>
+</body>
+</html>
